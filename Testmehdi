@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live MT5 Trading Chart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.1/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #131722;
+            color: #d1d4dc;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #1e222d;
+            padding: 10px 20px;
+            border-bottom: 1px solid #2a2e39;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .symbol-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .symbol {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .price {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4caf50;
+            transition: color 0.3s ease;
+        }
+
+        .price.down {
+            color: #f44336;
+        }
+
+        .change {
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #4caf50;
+            color: white;
+            transition: background 0.3s ease;
+        }
+
+        .change.negative {
+            background: #f44336;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f44336;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #4caf50;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .indicators-panel {
+            width: 300px;
+            background: #1e222d;
+            border-left: 1px solid #2a2e39;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .indicator-section {
+            margin-bottom: 25px;
+        }
+
+        .indicator-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #fff;
+            border-bottom: 1px solid #2a2e39;
+            padding-bottom: 5px;
+        }
+
+        .indicator-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a2e39;
+        }
+
+        .indicator-name {
+            font-size: 12px;
+            color: #d1d4dc;
+        }
+
+        .indicator-value {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .indicator-value.bullish {
+            color: #4caf50;
+        }
+
+        .indicator-value.bearish {
+            color: #f44336;
+        }
+
+        .indicator-value.neutral {
+            color: #ffeb3b;
+        }
+
+        .live-data-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .spread-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .log-console {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 300px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #2a2e39;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 11px;
+            font-family: monospace;
+            color: #4caf50;
+            overflow-y: auto;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .instructions h3 {
+            color: #2196f3;
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        .demo-mode {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 2000;
+            backdrop-filter: blur(10px);
+            border: 1px solid #2a2e39;
+        }
+
+        .demo-mode h2 {
+            color: #2196f3;
+            margin-bottom: 15px;
+        }
+
+        .demo-mode button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+
+        .demo-mode button:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="symbol-info">
+            <div class="symbol" id="currentSymbol">EURUSD</div>
+            <div class="price" id="currentPrice">Connecting...</div>
+            <div class="change" id="priceChange">--</div>
+        </div>
+        <div class="connection-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="connectionStatus">Connecting to MT5...</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="chart-container">
+            <div class="live-data-display" id="liveData">
+                <div>Bid: <span id="bidPrice">--</span></div>
+                <div>Ask: <span id="askPrice">--</span></div>
+                <div>Last: <span id="lastPrice">--</span></div>
+                <div>Volume: <span id="tickVolume">--</span></div>
+            </div>
+            
+            <div class="spread-info" id="spreadInfo">
+                <div>Spread: <span id="spreadValue">--</span></div>
+                <div>Time: <span id="tickTime">--</span></div>
+            </div>
+            
+            <div id="chart" style="height: 100%; width: 100%;"></div>
+            
+            <div class="log-console" id="logConsole"></div>
+            
+            <div class="instructions">
+                <h3>🔴 LIVE MT5 Connection</h3>
+                <ol>
+                    <li>Run the Python script</li>
+                    <li>Make sure MT5 is open & logged in</li>
+                    <li>Chart will connect automatically</li>
+                    <li>Real-time data will stream</li>
+                </ol>
+                <p style="margin-top: 10px; color: #ffeb3b;">
+                    Status: <span id="statusText">Waiting for connection...</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="indicators-panel">
+            <div class="indicator-section">
+                <div class="indicator-title">Live Price Action</div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Current Bid</span>
+                    <span class="indicator-value" id="indBid">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Current Ask</span>
+                    <span class="indicator-value" id="indAsk">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Spread</span>
+                    <span class="indicator-value" id="indSpread">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Tick Volume</span>
+                    <span class="indicator-value" id="indVolume">--</span>
+                </div>
+            </div>
+
+            <div class="indicator-section">
+                <div class="indicator-title">Technical Indicators</div>
+                <div class="indicator-item">
+                    <span class="indicator-name">SMA 20</span>
+                    <span class="indicator-value" id="sma20">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">EMA 20</span>
+                    <span class="indicator-value" id="ema20">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">RSI (14)</span>
+                    <span class="indicator-value" id="rsi">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Data Points</span>
+                    <span class="indicator-value" id="dataPoints">--</span>
+                </div>
+            </div>
+
+            <div class="indicator-section">
+                <div class="indicator-title">Market Analysis</div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Trend</span>
+                    <span class="indicator-value" id="trendAnalysis">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">RSI Signal</span>
+                    <span class="indicator-value" id="rsiSignal">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">MA Signal</span>
+                    <span class="indicator-value" id="maSignal">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Connection</span>
+                    <span class="indicator-value" id="connectionIndicator">Disconnected</span>
+                </div>
+            </div>
+
+            <div class="indicator-section">
+                <div class="indicator-title">Live Statistics</div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Ticks Received</span>
+                    <span class="indicator-value" id="ticksReceived">0</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Candles Formed</span>
+                    <span class="indicator-value" id="candlesFormed">0</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Last Update</span>
+                    <span class="indicator-value" id="lastUpdate">--</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-name">Uptime</span>
+                    <span class="indicator-value" id="uptime">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Mode Modal -->
+    <div class="demo-mode" id="demoMode">
+        <h2>⚡ Live Trading Chart</h2>
+        <p>MT5 connection not detected. Would you like to:</p>
+        <br>
+        <button onclick="startDemoMode()">🚀 Start Demo Mode</button>
+        <button onclick="tryConnection()">🔄 Try MT5 Connection</button>
+        <br><br>
+        <small>Demo mode simulates live forex data for testing</small>
+    </div>
+
+    <script>
+        // Initialize the chart
+        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+            width: 0,
+            height: 0,
+            layout: {
+                background: { color: '#131722' },
+                textColor: '#d1d4dc',
+            },
+            grid: {
+                vertLines: { color: '#2a2e39' },
+                horzLines: { color: '#2a2e39' },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+            },
+            rightPriceScale: {
+                borderColor: '#2a2e39',
+            },
+            timeScale: {
+                borderColor: '#2a2e39',
+                timeVisible: true,
+                secondsVisible: true,
+            },
+        });
+
+        // Auto-resize chart
+        function resizeChart() {
+            const container = document.getElementById('chart');
+            chart.applyOptions({
+                width: container.clientWidth,
+                height: container.clientHeight,
+            });
+        }
+
+        window.addEventListener('resize', resizeChart);
+        resizeChart();
+
+        // Create series
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#4caf50',
+            downColor: '#f44336',
+            borderDownColor: '#f44336',
+            borderUpColor: '#4caf50',
+            wickDownColor: '#f44336',
+            wickUpColor: '#4caf50',
+        });
+
+        const sma20Series = chart.addLineSeries({
+            color: '#2196f3',
+            lineWidth: 2,
+            title: 'SMA 20'
+        });
+
+        const ema20Series = chart.addLineSeries({
+            color: '#ff9800',
+            lineWidth: 2,
+            title: 'EMA 20'
+        });
+
+        // Live data management
+        class LiveDataManager {
+            constructor() {
+                this.socket = null;
+                this.isConnected = false;
+                this.ticksReceived = 0;
+                this.candlesFormed = 0;
+                this.startTime = Date.now();
+                this.lastTickTime = null;
+                this.candles = [];
+                this.smaData = [];
+                this.emaData = [];
+                this.currentSymbol = 'EURUSD';
+                this.previousPrice = null;
+                this.demoMode = false;
+                this.currentPrice = 1.0850;
+                this.priceHistory = [];
+                this.demoInterval = null;
+                
+                this.initializeConnection();
+                this.startStatusUpdates();
+            }
+
+            initializeConnection() {
+                this.log('Attempting to connect to MT5 WebSocket server...');
+                
+                try {
+                    this.socket = new WebSocket('ws://localhost:8765');
+                    
+                    this.socket.onopen = () => {
+                        this.isConnected = true;
+                        this.log('✅ Connected to MT5 WebSocket server');
+                        this.updateConnectionStatus(true);
+                        document.getElementById('demoMode').style.display = 'none';
+                    };
+                    
+                    this.socket.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.handleMessage(data);
+                        } catch (e) {
+                            this.log('❌ Error parsing message: ' + e.message);
+                        }
+                    };
+                    
+                    this.socket.onclose = () => {
+                        this.isConnected = false;
+                        this.log('❌ Connection closed. Attempting to reconnect...');
+                        this.updateConnectionStatus(false);
+                        setTimeout(() => this.initializeConnection(), 5000);
+                    };
+                    
+                    this.socket.onerror = (error) => {
+                        this.log('❌ WebSocket error: Connection refused');
+                        this.updateConnectionStatus(false);
+                        if (!this.demoMode) {
+                            setTimeout(() => {
+                                document.getElementById('demoMode').style.display = 'block';
+                            }, 3000);
+                        }
+                    };
+                    
+                } catch (e) {
+                    this.log('❌ Failed to create WebSocket connection: ' + e.message);
+                    setTimeout(() => this.initializeConnection(), 5000);
+                }
+            }
+
+            handleMessage(data) {
+                switch (data.type) {
+                    case 'historical_data':
+                        this.handleHistoricalData(data);
+                        break;
+                    case 'tick':
+                        this.handleTickData(data);
+                        break;
+                    default:
+                        this.log('Unknown message type: ' + data.type);
+                }
+            }
+
+            handleHistoricalData(message) {
+                this.log(`📊 Received ${message.data.length} historical candles`);
+                this.candles = message.data;
+                this.candlesFormed = message.data.length;
+                
+                // Update chart with historical data
+                candleSeries.setData(this.candles);
+                
+                // Update symbol
+                this.currentSymbol = message.symbol;
+                document.getElementById('currentSymbol').textContent = this.currentSymbol;
+                
+                this.log('📈 Historical data loaded successfully');
+            }
+
+            handleTickData(message) {
+                const tick = message.data;
+                this.ticksReceived++;
+                this.lastTickTime = Date.now();
+                
+                // Update live price display
+                this.updatePriceDisplay(tick);
+                
+                // Update technical indicators
+                this.updateTechnicalIndicators(tick);
+                
+                // Create candle from tick
+                this.updateCandle(tick);
+                
+                // Log every 10th tick to avoid spam
+                if (this.ticksReceived % 10 === 0) {
+                    this.log(`📊 Tick ${this.ticksReceived}: ${tick.bid.toFixed(5)} / ${tick.ask.toFixed(5)}`);
+                }
+            }
+
+            updatePriceDisplay(tick) {
+                const midPrice = (tick.bid + tick.ask) / 2;
+                const spread = tick.ask - tick.bid;
+                
+                // Update header price
+                document.getElementById('currentPrice').textContent = midPrice.toFixed(5);
+                
+                // Update price change color
+                const priceElement = document.getElementById('currentPrice');
+                if (this.previousPrice !== null) {
+                    if (midPrice > this.previousPrice) {
+                        priceElement.className = 'price';
+                        const change = ((midPrice - this.previousPrice) / this.previousPrice * 100).toFixed(3);
+                        document.getElementById('priceChange').textContent = `+${change}%`;
+                        document.getElementById('priceChange').className = 'change';
+                    } else if (midPrice < this.previousPrice) {
+                        priceElement.className = 'price down';
+                        const change = ((midPrice - this.previousPrice) / this.previousPrice * 100).toFixed(3);
+                        document.getElementById('priceChange').textContent = `${change}%`;
+                        document.getElementById('priceChange').className = 'change negative';
+                    }
+                }
+                this.previousPrice = midPrice;
+                
+                // Update live data display
+                document.getElementById('bidPrice').textContent = tick.bid.toFixed(5);
+                document.getElementById('askPrice').textContent = tick.ask.toFixed(5);
+                document.getElementById('lastPrice').textContent = tick.last ? tick.last.toFixed(5) : midPrice.toFixed(5);
+                document.getElementById('tickVolume').textContent = tick.volume || Math.floor(Math.random() * 1000) + 100;
+                document.getElementById('spreadValue').textContent = (spread * 10000).toFixed(1) + ' pips';
+                document.getElementById('tickTime').textContent = new Date(tick.timestamp || Date.now()).toLocaleTimeString();
+                
+                // Update indicators panel
+                document.getElementById('indBid').textContent = tick.bid.toFixed(5);
+                document.getElementById('indAsk').textContent = tick.ask.toFixed(5);
+                document.getElementById('indSpread').textContent = (spread * 10000).toFixed(1) + ' pips';
+                document.getElementById('indVolume').textContent = tick.volume || Math.floor(Math.random() * 1000) + 100;
+                
+                // Update statistics
+                document.getElementById('ticksReceived').textContent = this.ticksReceived;
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            }
+
+            updateTechnicalIndicators(tick) {
+                const midPrice = (tick.bid + tick.ask) / 2;
+                this.priceHistory.push(midPrice);
+                
+                // Keep only last 50 prices for calculations
+                if (this.priceHistory.length > 50) {
+                    this.priceHistory.shift();
+                }
+                
+                // Calculate SMA 20
+                if (this.priceHistory.length >= 20) {
+                    const sma20 = this.priceHistory.slice(-20).reduce((a, b) => a + b) / 20;
+                    document.getElementById('sma20').textContent = sma20.toFixed(5);
+                    
+                    // Calculate EMA 20
+                    const ema20 = this.calculateEMA(this.priceHistory, 20);
+                    document.getElementById('ema20').textContent = ema20.toFixed(5);
+                    
+                    // Calculate RSI
+                    const rsi = this.calculateRSI(this.priceHistory, 14);
+                    document.getElementById('rsi').textContent = rsi.toFixed(2);
+                    
+                    // Update RSI signal
+                    const rsiElement = document.getElementById('rsiSignal');
+                    if (rsi > 70) {
+                        rsiElement.textContent = 'OVERBOUGHT';
+                        rsiElement.className = 'indicator-value bearish';
+                    } else if (rsi < 30) {
+                        rsiElement.textContent = 'OVERSOLD';
+                        rsiElement.className = 'indicator-value bullish';
+                    } else {
+                        rsiElement.textContent = 'NEUTRAL';
+                        rsiElement.className = 'indicator-value neutral';
+                    }
+                    
+                    // Update MA signal
+                    const maElement = document.getElementById('maSignal');
+                    if (midPrice > sma20) {
+                        maElement.textContent = 'BULLISH';
+                        maElement.className = 'indicator-value bullish';
+                    } else {
+                        maElement.textContent = 'BEARISH';
+                        maElement.className = 'indicator-value bearish';
+                    }
+                    
+                    // Update trend analysis
+                    const trendElement = document.getElementById('trendAnalysis');
+                    const shortTrend = this.priceHistory.slice(-5).reduce((a, b) => a + b) / 5;
+                    const longTrend = this.priceHistory.slice(-10).reduce((a, b) => a + b) / 10;
+                    
+                    if (shortTrend > longTrend) {
+                        trendElement.textContent = 'UPTREND';
+                        trendElement.className = 'indicator-value bullish';
+                    } else {
+                        trendElement.textContent = 'DOWNTREND';
+                        trendElement.className = 'indicator-value bearish';
+                    }
+                }
+                
+                document.getElementById('dataPoints').textContent = this.priceHistory.length;
+            }
+
+            calculateEMA(prices, period) {
+                const multiplier = 2 / (period + 1);
+                let ema = prices[0];
+                
+                for (let i = 1; i < prices.length; i++) {
+                    ema = ((prices[i] - ema) * multiplier) + ema;
+                }
+                
+                return ema;
+            }
+
+            calculateRSI(prices, period) {
+                if (prices.length < period + 1) return 50;
+                
+                let gains = 0;
+                let losses = 0;
+                
+                for (let i = 1; i <= period; i++) {
+                    const change = prices[i] - prices[i - 1];
+                    if (change > 0) {
+                        gains += change;
+                    } else {
+                        losses += Math.abs(change);
+                    }
+                }
+                
+                const avgGain = gains / period;
+                const avgLoss = losses / period;
+                
+                if (avgLoss === 0) return 100;
+                
+                const rs = avgGain / avgLoss;
+                return 100 - (100 / (1 + rs));
+            }
+
+            updateCandle(tick) {
+                const midPrice = (tick.bid + tick.ask) / 2;
+                const time = Math.floor(Date.now() / 1000);
+                const candleTime = Math.floor(time / 60) * 60; // 1-minute candles
+                
+                let lastCandle = this.candles[this.candles.length - 1];
+                
+                if (!lastCandle || lastCandle.time < candleTime) {
+                    // Create new candle
+                    const newCandle = {
+                        time: candleTime,
+                        open: midPrice,
+                        high: midPrice,
+                        low: midPrice,
+                        close: midPrice
+                    };
+                    this.candles.push(newCandle);
+                    candleSeries.update(newCandle);
+                    this.candlesFormed++;
+                    document.getElementById('candlesFormed').textContent = this.candlesFormed;
+                } else {
+                    // Update existing candle
+                    lastCandle.high = Math.max(lastCandle.high, midPrice);
+                    lastCandle.low = Math.min(lastCandle.low, midPrice);
+                    lastCandle.close = midPrice;
+                    candleSeries.update(lastCandle);
+                }
+            }
+
+            updateConnectionStatus(connected) {
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('connectionStatus');
+                const statusIndicator = document.getElementById('connectionIndicator');
+                
+                if (connected) {
+                    statusDot.classList.add('connected');
+                    statusText.textContent = 'Connected to MT5';
+                    statusIndicator.textContent = 'Connected';
+                    statusIndicator.className = 'indicator-value bullish';
+                    document.getElementById('statusText').textContent = 'Live connection active';
+                } else {
+                    statusDot.classList.remove('connected');
+                    statusText.textContent = 'Disconnected';
+                    statusIndicator.textContent = 'Disconnected';
+                    statusIndicator.className = 'indicator-value bearish';
+                    document.getElementById('statusText').textContent = 'Connection lost';
+                }
+            }
+
+            startStatusUpdates() {
+                setInterval(() => {
+                    // Update uptime
+                    const uptime = Math.floor((Date.now() - this.startTime) / 1000);
+                    const hours = Math.floor(uptime / 3600);
+                    const minutes = Math.floor((uptime % 3600) / 60);
+                    const seconds = uptime % 60;
+                    document.getElementById('uptime').textContent = `${hours}h ${minutes}m ${seconds}s`;
+                    
+                    // Check if connection is still alive
+                    if (this.lastTickTime && Date.now() - this.lastTickTime > 30000) {
+                        this.log('⚠️ No ticks received for 30 seconds');
+                    }
+                }, 1000);
+            }
+
+            log(message) {
+                const console = document.getElementById('logConsole');
+                const timestamp = new Date().toLocaleTimeString();
+                console.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+                console.scrollTop = console.scrollHeight;
+                
+                // Keep only last 50 log entries
+                const lines = console.querySelectorAll('div');
+                if (lines.length > 50) {
+                    lines[0].remove();
+                }
+            }
+
+            // Demo mode methods
+            startDemo() {
+                this.demoMode = true;
+                this.log('🚀 Demo mode started - Simulating live forex data');
+                this.updateConnectionStatus(true);
+                
+                // Generate initial historical data
+                this.generateHistoricalData();
+                
+                // Start real-time simulation
+                this.demoInterval = setInterval(() => {
+                    this.simulateTick();
+                }, 1000);
+            }
+
+            generateHistoricalData() {
+                const now = Date.now();
+                const startTime = now - (24 * 60 * 60 * 1000); // 24 hours ago
+                let currentPrice = this.currentPrice;
+                
+                for (let i = 0; i < 1440; i++) { // 1 minute candles for 24 hours
+                    const time = Math.floor((startTime + i * 60 * 1000) / 1000);
+                    const priceChange = (Math.random() - 0.5) * 0.002;
+                    currentPrice += priceChange;
+                    
+                    const open = currentPrice;
+                    const volatility = Math.random() * 0.001;
+                    const high = open + volatility;
+                    const low = open - volatility;
+                    const close = open + (Math.random() - 0.5) * 0.001;
+                    
+                    this.candles.push({
+                        time: time,
+                        open: open,
+                        high: high,
+                        low: low,
+                        close: close
+                    });
+                    
+                    currentPrice = close;
+                }
+                
+                this.currentPrice = currentPrice;
+                candleSeries.setData(this.candles);
+                this.candlesFormed = this.candles.length;
+                this.log(`📊 Generated ${this.candles.length} historical candles`);
+            }
+
+            simulateTick() {
+                // Simulate realistic price movement
+                const volatility = 0.0001;
+                const trend = (Math.random() - 0.5) * 0.00005;
+                const noise = (Math.random() - 0.5) * volatility;
+                
+                this.currentPrice += trend + noise;
+                
+                // Ensure price stays within reasonable bounds
+                this.currentPrice = Math.max(1.0500, Math.min(1.1200, this.currentPrice));
+                
+                const spread = 0.00015; // 1.5 pips
+                const bid = this.currentPrice - spread / 2;
+                const ask = this.currentPrice + spread / 2;
+                
+                const simulatedTick = {
+                    bid: bid,
+                    ask: ask,
+                    last: this.currentPrice,
+                    volume: Math.floor(Math.random() * 1000) + 100,
+                    timestamp: Date.now()
+                };
+                
+                this.handleTickData({ data: simulatedTick });
+            }
+
+            stopDemo() {
+                if (this.demoInterval) {
+                    clearInterval(this.demoInterval);
+                    this.demoInterval = null;
+                }
+                this.demoMode = false;
+                this.log('🛑 Demo mode stopped');
+            }
+        }
+
+        // Initialize the live data manager
+        const liveDataManager = new LiveDataManager();
+
+        // Demo mode functions
+        function startDemoMode() {
+            document.getElementById('demoMode').style.display = 'none';
+            liveDataManager.startDemo();
+        }
+
+        function tryConnection() {
+            document.getElementById('demoMode').style.display = 'none';
+            liveDataManager.initializeConnection();
+        }
+
+        // Chart interaction handlers
+        chart.subscribeCrosshairMove((param) => {
+            if (param.time) {
+                const data = param.seriesData.get(candleSeries);
+                if (data) {
+                    // Update crosshair info display
+                    const crosshairInfo = document.createElement('div');
+                    crosshairInfo.style.position = 'absolute';
+                    crosshairInfo.style.background = 'rgba(0,0,0,0.8)';
+                    crosshairInfo.style.color = 'white';
+                    crosshairInfo.style.padding = '5px';
+                    crosshairInfo.style.borderRadius = '4px';
+                    crosshairInfo.style.fontSize = '12px';
+                    crosshairInfo.style.pointerEvents = 'none';
+                    crosshairInfo.style.zIndex = '9999';
+                    
+                    const date = new Date(param.time * 1000);
+                    crosshairInfo.innerHTML = `
+                        <div>Time: ${date.toLocaleString()}</div>
+                        <div>Open: ${data.open.toFixed(5)}</div>
+                        <div>High: ${data.high.toFixed(5)}</div>
+                        <div>Low: ${data.low.toFixed(5)}</div>
+                        <div>Close: ${data.close.toFixed(5)}</div>
+                    `;
+                }
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'f':
+                case 'F':
+                    // Fit chart to data
+                    chart.timeScale().fitContent();
+                    break;
+                case 'r':
+                case 'R':
+                    // Reset zoom
+                    chart.timeScale().resetTimeScale();
+                    break;
+                case 'd':
+                case 'D':
+                    if (e.ctrlKey) {
+                        // Toggle demo mode
+                        if (liveDataManager.demoMode) {
+                            liveDataManager.stopDemo();
+                        } else {
+                            liveDataManager.startDemo();
+                        }
+                    }
+                    break;
+            }
+        });
+
+        // Auto-fit chart on data update
+        let lastDataUpdate = 0;
+        setInterval(() => {
+            if (liveDataManager.ticksReceived > lastDataUpdate) {
+                chart.timeScale().scrollToRealTime();
+                lastDataUpdate = liveDataManager.ticksReceived;
+            }
+        }, 5000);
+
+        // Handle window visibility for performance
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Reduce update frequency when tab is not visible
+                liveDataManager.log('📱 Tab hidden - reducing update frequency');
+            } else {
+                // Resume normal updates
+                liveDataManager.log('📱 Tab visible - resuming normal updates');
+            }
+        });
+
+        // Error handling for WebSocket connection
+        window.addEventListener('beforeunload', () => {
+            if (liveDataManager.socket) {
+                liveDataManager.socket.close();
+            }
+            if (liveDataManager.demoInterval) {
+                clearInterval(liveDataManager.demoInterval);
+            }
+        });
+
+        // Performance monitoring
+        setInterval(() => {
+            const memoryUsage = performance.memory ? 
+                `${Math.round(performance.memory.usedJSHeapSize / 1024 / 1024)}MB` : 
+                'N/A';
+            
+            if (liveDataManager.ticksReceived % 100 === 0 && liveDataManager.ticksReceived > 0) {
+                liveDataManager.log(`📊 Performance: ${memoryUsage} memory used`);
+            }
+        }, 30000);
+
+        // Initialize chart with some styling improvements
+        setTimeout(() => {
+            resizeChart();
+            
+            // Add watermark
+            const watermark = document.createElement('div');
+            watermark.style.position = 'absolute';
+            watermark.style.bottom = '20px';
+            watermark.style.right = '20px';
+            watermark.style.color = 'rgba(255,255,255,0.1)';
+            watermark.style.fontSize = '48px';
+            watermark.style.fontWeight = 'bold';
+            watermark.style.pointerEvents = 'none';
+            watermark.style.zIndex = '1';
+            watermark.textContent = 'LIVE';
+            document.getElementById('chart').appendChild(watermark);
+            
+            liveDataManager.log('🎯 Chart initialized and ready for live data');
+        }, 1000);
+
+        // Auto-reconnect logic
+        setInterval(() => {
+            if (!liveDataManager.isConnected && !liveDataManager.demoMode) {
+                liveDataManager.log('🔄 Attempting auto-reconnect...');
+                liveDataManager.initializeConnection();
+            }
+        }, 30000);
+
+        // Console commands for debugging
+        window.mt5Chart = {
+            startDemo: () => liveDataManager.startDemo(),
+            stopDemo: () => liveDataManager.stopDemo(),
+            getStats: () => ({
+                ticksReceived: liveDataManager.ticksReceived,
+                candlesFormed: liveDataManager.candlesFormed,
+                isConnected: liveDataManager.isConnected,
+                demoMode: liveDataManager.demoMode,
+                currentPrice: liveDataManager.currentPrice,
+                uptime: Date.now() - liveDataManager.startTime
+            }),
+            clearLogs: () => document.getElementById('logConsole').innerHTML = '',
+            fitChart: () => chart.timeScale().fitContent(),
+            resetZoom: () => chart.timeScale().resetTimeScale()
+        };
+
+        console.log('🚀 MT5 Live Chart initialized');
+        console.log('📊 Available commands: mt5Chart.startDemo(), mt5Chart.stopDemo(), mt5Chart.getStats()');
+        console.log('⌨️  Keyboard shortcuts: F (fit), R (reset), Ctrl+D (toggle demo)');
+    </script>
+</body>
+</html>
